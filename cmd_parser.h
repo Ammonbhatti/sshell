@@ -34,7 +34,7 @@ typedef struct pipe_t
 
 };
 
-cmd_t command_parser(cmd_t vessel, char* raw); 
+void cmd_parser(cmd_t& vessel, char* raw); 
 
 
 

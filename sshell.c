@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <strings.h>
 #include <string.h>
+#include "cmd_parser.h"		//contains parsing utilities
 #define MAX_BUFFER 512
 #define MAX_ARGS 17		//Includes argv[0]
 
