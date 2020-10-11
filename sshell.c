@@ -29,6 +29,7 @@ int main(void)
 		ui  = strchr(user_input, '\n');	       //ui points to '\n'
 		if (ui)
                         *ui = '\0';
+
 		strcat(cmd, user_input);
 	       	args[0] = cmd; 	
 		if(!strcmp(user_input, "exit"))
