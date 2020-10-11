@@ -26,7 +26,7 @@ int main(void)
 		fgets(user_input, 512, stdin);
 		//ret_cmd = process_command(user_input);
 		//Currently Phase1: basic commands
-		ui  = strchr(user_input, '\n');
+		ui  = strchr(user_input, '\n');	       //ui points to '\n'
 		if (ui)
                         *ui = '\0';
 		strcat(cmd, user_input);
@@ -50,7 +50,8 @@ int main(void)
 			/* Parent */
 			int status;
 			waitpid(pid, &status, 0);
-			printf(stderr, "\n+ Completed '%s' [%d]\n",user_input, WEXITSTATUS(status));
+			fprintf(stderr, "\n+ Completed '%s' [%d]\n",
+					user_input, WEXITSTATUS(status));
 		}
 
 	}
