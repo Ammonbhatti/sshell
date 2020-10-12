@@ -17,33 +17,31 @@ int main(void)
 	while(1)
 	{
 
-		char user_input[MAX_BUFFER]; 
-		char cmd[MAX_BUFFER] = "/bin/";  
-		char* args[MAX_ARGS] = {0}; 
-		char* ui;
+		
+		cmd_t parser;
+		for(int i =0; i<MAX_ARGS; ++i)		//fill arguments with zeroes 
+			parser.args[i] = NULL; 
+
 		printf("sshell@ucd$ "); 
 		fflush(stdout); 
 
-		fgets(user_input, 512, stdin);
+		fgets(parser.raw_input, 512, stdin);
 		//ret_cmd = process_command(user_input);
 		//Currently Phase1: basic commands
-		ui  = strchr(user_input, '\n');	       //ui points to '\n'
-		if (ui)
-                        *ui = '\0';
-
-		strcat(cmd, user_input);
-	       	args[0] = cmd; 	
-		if(!strcmp(user_input, "exit"))
+		
+		cmd_parser(&parser, parser.raw_input); 
+		 	
+		if(!strcmp(parser.args[0], "exit"))
 		{
 			fprintf(stderr, "Bye...\n");
 			break;  
 		}
 
-		unsigned pid = fork(); 
+		int pid = fork(); 
 		if (pid == 0) 
 		{
 			/* Child */
-			execv(cmd, args);
+			execv(parser.exec, parser.args);
 			perror("execv");
 			exit(1);
 		} 
@@ -53,7 +51,7 @@ int main(void)
 			int status;
 			waitpid(pid, &status, 0);
 			fprintf(stderr, "\n+ Completed '%s' [%d]\n",
-					user_input, WEXITSTATUS(status));
+					parser.raw_input, WEXITSTATUS(status));
 		}
 
 	}
