@@ -15,9 +15,7 @@ int main(void)
 
 
 	while(1)
-	{
-
-		
+	{ 
 		cmd_t parser;
 		for(int i =0; i<MAX_ARGS; ++i)		//fill arguments with zeroes 
 			parser.args[i] = NULL; 
@@ -29,7 +27,7 @@ int main(void)
 		//ret_cmd = process_command(user_input);
 		//Currently Phase1: basic commands
 		
-		cmd_parser(&parser, parser.raw_input); 
+		cmd_parser(&parser,parser.raw_input); 
 		 	
 		if(!strcmp(parser.args[0], "exit"))
 		{
@@ -41,7 +39,7 @@ int main(void)
 		if (pid == 0) 
 		{
 			/* Child */
-			execv(parser.exec, parser.args);
+			execute_command(&parser); 
 			perror("execv");
 			exit(1);
 		} 
@@ -53,6 +51,8 @@ int main(void)
 			fprintf(stderr, "\n+ Completed '%s' [%d]\n",
 					parser.raw_input, WEXITSTATUS(status));
 		}
+		for(unsigned i = 0; i<parser.mallocs; i++)
+			free(parser.pipe_cmds[i]); 
 
 	}
 
