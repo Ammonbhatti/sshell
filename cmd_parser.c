@@ -1,4 +1,5 @@
 #include "cmd_parser.h"
+#include <stdio.h>
 
 //Pass struct by reference
 void cmd_parser(cmd_t* vessel, char* raw)
@@ -42,5 +43,23 @@ void cmd_parser(cmd_t* vessel, char* raw)
 	else
 	{
 		//Handle file redirection
+		int count =0;
+			
+		argument = strtok(raw, " ");
+		strcpy(vessel->exec, "/bin/");
+		strcat(vessel->exec, argument);
+			vessel->args[count++] = argument;
+		        	
+		
+			
+		strcpy(vessel->args[0], argument);  
+		argument = strtok(NULL, ">");
+		    while(argument != NULL)
+		{
+			vessel->args[count++] = argument;
+			argument = strtok(NULL, ">"); 	
+		}
+		printf("%s",vessel->args[1]);
+		// printf("%s","heeeee");
 	}
 }
