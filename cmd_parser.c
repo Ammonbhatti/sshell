@@ -7,8 +7,7 @@
 void cmd_parser(cmd_t* vessel, char* raw)
 {
 	
-	char *argument, *ui;		//used to process args including argv[0]
-	char *nameOfOutputFile; 
+	char *argument, *ui;		//used to process args including argv[0] 
 	vessel->mallocs= 0; 		//for heap memory management
 
 	/* Get rid of '\n' at the end of the command */
@@ -70,12 +69,14 @@ void cmd_parser(cmd_t* vessel, char* raw)
 	{
 		//Handle file redirection
 		int count =0;
-		int fd;
+		// int fd;
+		char *command;
+		char *nameOfOutputFile;
 		vessel->which_command = REDIRECT_NORMAL; 
 
-		argument = strtok(raw, ">");
-		nameOfOutputFile = strtok(NULL, ">");
-		argument = strtok(argument, " ");
+		command = strtok_r(raw, ">", &raw);
+		
+		argument = strtok(command, " ");
 		strcpy(vessel->exec, "/bin/");
 		strcat(vessel->exec, argument);
 		vessel->args[count++] = argument;
@@ -86,13 +87,14 @@ void cmd_parser(cmd_t* vessel, char* raw)
 		{
 			vessel->args[count++] = argument;
 			argument = strtok(NULL, " "); 	
-		}	
-		        	
+		}
+
+			// pointing output file name
+		nameOfOutputFile = strtok_r(raw, ">", &raw);  
+		strcpy(vessel->output_file, nameOfOutputFile);      	
 		// printf("%s\n", nameOfOutputFile);
 
-		fd = open(nameOfOutputFile, O_WRONLY | O_CREAT, 0644);	
-		dup2(fd, STDOUT_FILENO);
-		close(fd);
+		
 
 	}
 }
@@ -133,6 +135,7 @@ void pipeline(cmd_t* process1, cmd_t* process2)
 
 void execute_command(cmd_t* cmd)
 {
+	int fd;
 
 	if(cmd == NULL)
 		fprintf(stderr, "NULL pointer passed in !");
@@ -142,8 +145,14 @@ void execute_command(cmd_t* cmd)
 		case NORMAL:
 			execv(cmd->exec, cmd->args); 	
 			break; 
-		case REDIRECT_NORMAL: 
-		      	break; 
+		case REDIRECT_NORMAL:
+			// redirect code
+			 
+			fd = open(cmd->output_file, O_WRONLY | O_CREAT, 0644);	
+			dup2(fd, STDOUT_FILENO);
+			close(fd);
+			execv(cmd->exec, cmd->args);
+		    break; 
 		case REDIRECT_APPEND:
 			break; 
 	        case PIPE_TWO: 
