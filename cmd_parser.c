@@ -70,7 +70,7 @@ void cmd_parser(cmd_t* vessel, char* raw)
 		int count =0;
 		// int fd;
 		char *command;
-		char *nameOfOutputFile;
+		char *name_of_output_file;
 
 		// check for append command
 		if (strstr(raw, ">>") == NULL)
@@ -79,14 +79,13 @@ void cmd_parser(cmd_t* vessel, char* raw)
 			vessel->which_command = REDIRECT_APPEND;
 
 		command = strtok_r(raw, ">", &raw);
-		
 		argument = strtok(command, " ");
 
 		strcpy(vessel->exec, "/bin/");
 		strcat(vessel->exec, argument);
-		vessel->args[count++] = argument;
-		        	
-		strcpy(vessel->args[0], argument);  
+		vessel->args[count++] = argument;      	
+		strcpy(vessel->args[0], argument); 
+
 		argument = strtok(NULL, " ");
 		while(argument != NULL)
 		{
@@ -95,12 +94,8 @@ void cmd_parser(cmd_t* vessel, char* raw)
 		}
 
 		// pointing output file name
-		nameOfOutputFile = strtok_r(raw, ">", &raw);  
-		strcpy(vessel->output_file, nameOfOutputFile);      	
-		
-
-		
-
+		name_of_output_file = strtok_r(raw, ">", &raw);  
+		strcpy(vessel->output_file, name_of_output_file);     	
 	}
 }
 
@@ -208,14 +203,19 @@ void execute_command(cmd_t* cmd)
 			execv(cmd->exec, cmd->args); 	
 			break; 
 		case REDIRECT_NORMAL:
-			// redirect code
-			 
 			fd = open(cmd->output_file, O_WRONLY | O_CREAT, 0644);	
 			dup2(fd, STDOUT_FILENO);
 			close(fd);
 			execv(cmd->exec, cmd->args);
 		    break; 
 		case REDIRECT_APPEND:
+			// case when output file does not exist
+			if (access(cmd->output_file, F_OK) == -1)
+			{
+				fprintf(stderr, "Error: cannot open output file\n");
+				exit(1); 
+			}
+
 			fd = open(cmd->output_file, O_WRONLY | O_APPEND, 0644);	
 			dup2(fd, STDOUT_FILENO);
 			close(fd);
