@@ -27,8 +27,7 @@ void cmd_parser(cmd_t* vessel, char* raw)
 			strcpy(vessel->exec, "/bin/");
 			strcat(vessel->exec, argument);
 		        vessel->args[count++] = argument;
-		        	
-			strcpy(vessel->args[0], argument);  
+		        	  
 			argument = strtok(NULL, " ");
 		        while(argument != NULL)
 			{
@@ -99,7 +98,7 @@ void cmd_parser(cmd_t* vessel, char* raw)
 	}
 }
 
-void pipeline(cmd_t* process1, cmd_t* process2)
+void pipeline_2(cmd_t* cmd)
 {
 
 	int fd[2]; 
@@ -114,10 +113,12 @@ void pipeline(cmd_t* process1, cmd_t* process2)
 		//Close now unused FD
 		close(fd[1]);
 		//parent becomes process 1 
-		execv(process1->exec, process1->args); 
+
+		execv(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args); 
 	}	
 	else
 	{
+
 		//Child
 		//No need for write access
 		close(fd[1]); 
@@ -126,10 +127,65 @@ void pipeline(cmd_t* process1, cmd_t* process2)
 		//close now unused FD
 		close(fd[0]); 
 		//child becomes process 2
-		execv(process2->exec, process2->args); 	
+		execv(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 	
 
 	}
 
+}
+void pipeline_3(cmd_t* cmd)
+{
+
+	int fd[2]; 
+	int fd_2[2]; 
+	pipe(fd); 
+	if(fork() != 0)
+	{
+		//Grandparent
+		//no need for read access
+		close(fd[0]); 
+		//replace stdout with pipe
+		dup2(fd[1], STDOUT_FILENO); 
+		//Close now unused FD
+		close(fd[1]);
+		//grandparent parent becomes process 1 
+
+		execv(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args); 
+	}	
+	else
+	{
+		pipe(fd_2); 
+
+		if(fork() !=0)
+		{
+			//Parent
+			//No need for write access pipe #1
+			close(fd[1]);
+			//No need for read access pipe #2 
+			close(fd_2[0]);  
+			//Replace stdin with pipe
+			dup2(fd[0], STDIN_FILENO);
+			//Replace stdout with pipe2 
+			dup2(fd_2[1], STDOUT_FILENO); 
+			//close now unused FDs 
+			close(fd[0]); 
+			close(fd_2[1]); 
+			//parent becomes process 2
+			execv(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
+
+		}
+		else
+		{
+			//Child
+			//No need for write access
+			close(fd_2[1]); 
+			//Replace stdin with pipe
+			dup2(fd_2[0], STDIN_FILENO); 
+			//close now unused FD
+			close(fd_2[0]); 
+			//child becomes process 3
+			execv(cmd->pipe_cmds[2]->exec, cmd->pipe_cmds[2]->args);
+		} 	
+	}
 }
 
 
@@ -156,9 +212,10 @@ void execute_command(cmd_t* cmd)
 		case REDIRECT_APPEND:
 			break; 
 	        case PIPE_TWO: 
-			pipeline(cmd->pipe_cmds[0],cmd->pipe_cmds[1]);  
+			pipeline_2(cmd);  
 			break; 
 		case PIPE_THREE: 
+			pipeline_3(cmd); 
 			break; 
 		case SLS: 
 			break; 
