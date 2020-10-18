@@ -71,11 +71,17 @@ void cmd_parser(cmd_t* vessel, char* raw)
 		// int fd;
 		char *command;
 		char *nameOfOutputFile;
-		vessel->which_command = REDIRECT_NORMAL; 
+
+		// check for append command
+		if (strstr(raw, ">>") == NULL)
+			vessel->which_command = REDIRECT_NORMAL;
+		else
+			vessel->which_command = REDIRECT_APPEND;
 
 		command = strtok_r(raw, ">", &raw);
 		
 		argument = strtok(command, " ");
+
 		strcpy(vessel->exec, "/bin/");
 		strcat(vessel->exec, argument);
 		vessel->args[count++] = argument;
@@ -88,10 +94,10 @@ void cmd_parser(cmd_t* vessel, char* raw)
 			argument = strtok(NULL, " "); 	
 		}
 
-			// pointing output file name
+		// pointing output file name
 		nameOfOutputFile = strtok_r(raw, ">", &raw);  
 		strcpy(vessel->output_file, nameOfOutputFile);      	
-		// printf("%s\n", nameOfOutputFile);
+		
 
 		
 
@@ -210,6 +216,10 @@ void execute_command(cmd_t* cmd)
 			execv(cmd->exec, cmd->args);
 		    break; 
 		case REDIRECT_APPEND:
+			fd = open(cmd->output_file, O_WRONLY | O_APPEND, 0644);	
+			dup2(fd, STDOUT_FILENO);
+			close(fd);
+			execv(cmd->exec, cmd->args);
 			break; 
 	        case PIPE_TWO: 
 			pipeline_2(cmd);  
