@@ -10,9 +10,11 @@ void cmd_parser(cmd_t* vessel, char* raw)
 {
 
 	char *argument, *ui;		//used to process args including argv[0] 
-	char pwd[]= "pwd", cd[]="cd", sls[] = "sls"; 
+	char pwd[]= "pwd", cd[]="cd", sls[] = "sls", exit[]="exit"; 
  
 	vessel->mallocs= 0;
+	vessel->child1_status = 0; 
+	vessel->child2_status = 0; 
 	/* Get rid of '\n' at the end of the command */
 	ui  = strchr(raw, '\n');
         if (ui)	*ui = '\0';
@@ -41,7 +43,8 @@ void cmd_parser(cmd_t* vessel, char* raw)
                                 vessel->which_command = CD;
 		       	else if (!strcmp(argument, sls))
 				vessel->which_command = SLS; 
-
+			else if(!strcmp(argument, exit))
+				vessel->which_command = EXIT; 
 			argument = strtok(NULL, " ");
 		        while(argument != NULL)
 			{
@@ -110,89 +113,98 @@ void cmd_parser(cmd_t* vessel, char* raw)
 void pipeline_2(cmd_t* cmd)
 {
 
+	int status1 =0, pid; 
 	int fd[2]; 
-	pipe(fd); 
-	if(fork() != 0)
+	pipe(fd);	
+	/* Note the program outputing to the terminal must be in the  *
+	 * parent process. The children cannot output to the terminal *
+	 * due to the SIGTTIN/ SIGTTOU                                */
+	pid = fork();
+	if(pid > 0)
 	{
-		//parent
-		//no need for read access
-		close(fd[0]); 
-		//replace stdout with pipe
-		dup2(fd[1], STDOUT_FILENO); 
-		//Close now unused FD
-		close(fd[1]);
-		//parent becomes process 1 
-
-		execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args); 
+		//Parent
+                //No need for write access
+                close(fd[1]);
+                //Replace stdin with pipe
+                dup2(fd[0], STDIN_FILENO);
+                //close now unused FD
+                close(fd[0]);
+                //child becomes process 2
+		waitpid(pid, &status1, 0); 
+		cmd->child1_status = WEXITSTATUS(status1); 
+                execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
 	}	
 	else
 	{
 
-		//Child
-		//No need for write access
-		close(fd[1]); 
-		//Replace stdin with pipe
-		dup2(fd[0], STDIN_FILENO); 
-		//close now unused FD
-		close(fd[0]); 
-		//child becomes process 2
-		execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 	
-
+		//Child	
+                //no need for read access
+                close(fd[0]);
+                //replace stdout with pipe
+                dup2(fd[1], STDOUT_FILENO);
+                //Close now unused FD
+                close(fd[1]);
+                //child becomes process 1 
+                execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args);
 	}
 
 }
+
 void pipeline_3(cmd_t* cmd)
 {
 
-	int fd[2]; 
-	int fd_2[2]; 
-	pipe(fd); 
-	if(fork() != 0)
+	int fd_1[2], fd_2[2]; 
+	int status1, status2, pid1, pid2; 
+	pipe(fd_1); 
+	if((pid1 =fork()) > 0)
 	{
 		//Grandparent
-		//no need for read access
-		close(fd[0]); 
-		//replace stdout with pipe
-		dup2(fd[1], STDOUT_FILENO); 
-		//Close now unused FD
-		close(fd[1]);
-		//grandparent parent becomes process 1 
-
-		execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args); 
+		//No need for write access
+                close(fd_1[1]);
+                //Replace stdin with pipe
+                dup2(fd_1[0], STDIN_FILENO);
+                //close now unused FD
+                close(fd_1[0]);
+                //grandparent becomes process 3
+		waitpid(pid1, &status1, 0);
+               	cmd->child1_status = WEXITSTATUS(status1);
+                execvp(cmd->pipe_cmds[2]->exec, cmd->pipe_cmds[2]->args); 
 	}	
 	else
 	{
 		pipe(fd_2); 
 
-		if(fork() !=0)
+		if((pid2= fork()) > 0)
 		{
 			//Parent
 			//No need for write access pipe #1
-			close(fd[1]);
+			close(fd_2[1]);
 			//No need for read access pipe #2 
-			close(fd_2[0]);  
+			close(fd_1[0]);  
 			//Replace stdin with pipe
-			dup2(fd[0], STDIN_FILENO);
+			dup2(fd_2[0], STDIN_FILENO);
 			//Replace stdout with pipe2 
-			dup2(fd_2[1], STDOUT_FILENO); 
+			dup2(fd_1[1], STDOUT_FILENO); 
 			//close now unused FDs 
-			close(fd[0]); 
-			close(fd_2[1]); 
+			close(fd_2[0]); 
+			close(fd_1[1]); 
 			//parent becomes process 2
+			waitpid(pid2, &status2, 0);
+	                cmd->child2_status = WEXITSTATUS(status2);
 			execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
 
 		}
 		else
 		{
 			//Child
-			//No need for write access
-			close(fd_2[1]); 
-			//Replace stdin with pipe
-			dup2(fd_2[0], STDIN_FILENO); 
-			//close now unused FD
-			close(fd_2[0]); 
-			//child becomes process 3
-			execvp(cmd->pipe_cmds[2]->exec, cmd->pipe_cmds[2]->args);
+			//no need for read access
+	                close(fd_2[0]);
+                	//replace stdout with pipe
+                	dup2(fd_2[1], STDOUT_FILENO);
+                	//Close now unused FD
+                	close(fd_2[1]);
+			//childe becomes process 1
+                	execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args);
 		} 	
 	}
 }
@@ -245,7 +257,10 @@ void execute_command_c(cmd_t* cmd)
 			break;
 		case CD: 
 			exit(0); 
-			break; 
+			break;
+		case EXIT: 
+			exit(0); 
+			break;	
 		default: 
 			break; 
 
@@ -294,5 +309,33 @@ void execute_sls(cmd_t* cmd)
 
 }
 
+void print_main(cmd_t* parser, int status)
+{
 
+	switch(parser->which_command)
+	{
+		case PIPE_TWO:
+			fprintf(stderr, "\n+ Completed '%s' [%d][%d]\n",
+                                        parser->raw_input, 
+					parser->child1_status,
+					WEXITSTATUS(status)); 
+			break; 
+		case PIPE_THREE:
+			fprintf(stderr, "\n+ Completed '%s' [%d][%d][%d]\n",
+                                        parser->raw_input,
+				        parser->child1_status,
+                                        parser->child2_status,	
+                                        WEXITSTATUS(status));
+			break;
+		case EXIT:
+                        fprintf(stderr, "Bye...\n");
+			fprintf(stderr, "\n+ Completed '%s' [%d]\n",
+                                        parser->raw_input, WEXITSTATUS(status));
+			break; 
+		default:
+			fprintf(stderr, "\n+ Completed '%s' [%d]\n",
+                                        parser->raw_input, WEXITSTATUS(status));
+			break;
+	}
+}
 

@@ -22,17 +22,11 @@ int main(void)
 		printf("sshell@ucd$ "); 
 		fflush(stdout); 
 
-		fgets(raw_input, 512, stdin);
+		fgets(raw_input, MAX_BUFFER, stdin);
 		strcpy(parser.raw_input, raw_input); 
 		cmd_parser(&parser,raw_input); 
 		if(parser.which_command == CD || parser.which_command == SLS)
 			parent=1; 
-
-		if(!strcmp(parser.args[0], "exit"))
-		{
-			fprintf(stderr, "Bye...\n");
-			break;  
-		}
 
 		int pid = fork(); 
 		if (pid == 0) 
@@ -49,13 +43,13 @@ int main(void)
 			waitpid(pid, &status, 0);
 			if(parent)
 				execute_command_p(&parser);
-
-			fprintf(stderr, "\n+ Completed '%s' [%d]\n",
-					parser.raw_input, WEXITSTATUS(status));
+			
+			print_main(&parser, status); 
 		}
 		for(unsigned i = 0; i<parser.mallocs; i++)
 			free(parser.pipe_cmds[i]); 
-
+		if(parser.which_command == EXIT)
+			break; 
 	}
 
 	return 0; 
