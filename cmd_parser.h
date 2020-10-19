@@ -4,14 +4,14 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #define MAX_BUFFER 512
-#define MAX_ARGS 17
+#define MAX_ARGS 16
 #define DEFAULT_SIZE 100   
 #define MAX_PIPE_SIZE 3
 
 /*This structure handles the raw input from the terminal *
  *and holds the results of the parser function.          */
 
-enum CMD_TYPE {NORMAL, REDIRECT_NORMAL, REDIRECT_APPEND, PIPE_TWO, PIPE_THREE, SLS, FILES}; 
+enum CMD_TYPE {NORMAL, REDIRECT_NORMAL, REDIRECT_APPEND, PIPE_TWO, PIPE_THREE, SLS, PWD, CD}; 
 
 typedef struct cmd_t 
 {
@@ -28,14 +28,18 @@ typedef struct cmd_t
 	//handling pipes
 	unsigned mallocs; 
 	struct cmd_t* pipe_cmds[MAX_PIPE_SIZE];
-
+	
+	//file commands
+	char cwd[DEFAULT_SIZE];	
+	/*Note args[1] is pointing to path for cd*/
 
 } cmd_t; 
 
 
 void cmd_parser(cmd_t* vessel, char* raw); 
-void execute_command(cmd_t* cmd);
-
+void execute_command_c(cmd_t* cmd);
+void execute_command_p(cmd_t* cmd); 
+void execute_sls(cmd_t* cmd); 
 
 
 

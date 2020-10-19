@@ -2,32 +2,46 @@
 #include <stdio.h>
 #include <fcntl.h> // for open
 #include <unistd.h> // for close
+#include <sys/stat.h>
+#include <dirent.h>
 
 //Pass struct by reference
 void cmd_parser(cmd_t* vessel, char* raw)
 {
-	
-	char *argument, *ui;		//used to process args including argv[0] 
-	vessel->mallocs= 0; 		//for heap memory management
 
+	char *argument, *ui;		//used to process args including argv[0] 
+	char pwd[]= "pwd", cd[]="cd", sls[] = "sls"; 
+ 
+	vessel->mallocs= 0;
 	/* Get rid of '\n' at the end of the command */
-	ui  = strchr(raw, '\n');        //ui points to '\n'
-        if (ui)
-        	*ui = '\0';
+	ui  = strchr(raw, '\n');
+        if (ui)	*ui = '\0';
+	ui  = strchr(vessel->raw_input, '\n');
+        if (ui) *ui = '\0';	
 	
 	if(strchr(raw, '>') == NULL)
 	{
 		if(strchr(raw, '|') == NULL)
 		{
+
 			//Regular command with arguments
 			vessel->which_command = NORMAL; 
+
 			int count =0;
 			
-			argument = strtok(raw, " ");
-			strcpy(vessel->exec, "/bin/");
-			strcat(vessel->exec, argument);
+			argument = strtok(raw, " "); 
+			strcpy(vessel->exec, argument);
 		        vessel->args[count++] = argument;
-		        	  
+			//if pwd command
+			if(!strcmp(argument, pwd))
+                                vessel->which_command = PWD;
+			//if cd command
+			//Note args[1] path to change to 
+                        else if(!strcmp(argument, cd))
+                                vessel->which_command = CD;
+		       	else if (!strcmp(argument, sls))
+				vessel->which_command = SLS; 
+
 			argument = strtok(NULL, " ");
 		        while(argument != NULL)
 			{
@@ -48,8 +62,6 @@ void cmd_parser(cmd_t* vessel, char* raw)
 			{	
 				//recursize call to handle NORMAL command
 				vessel->pipe_cmds[index] = (cmd_t*) malloc(sizeof(cmd_t));
-			       	//problemuoccurs here (possible argument is changed)
-				//strcpy(placeholder, argument); 	
 				cmd_parser(vessel->pipe_cmds[index++], argument); 	
 				argument = strtok_r(raw, "|", &raw); 	
 			}
@@ -67,25 +79,19 @@ void cmd_parser(cmd_t* vessel, char* raw)
 	else
 	{
 		//Handle file redirection
-		int count =0;
-		// int fd;
-		char *command;
-		char *name_of_output_file;
-
+		int count =0; 
+		char *command, *out_file;
 		// check for append command
 		if (strstr(raw, ">>") == NULL)
 			vessel->which_command = REDIRECT_NORMAL;
 		else
-			vessel->which_command = REDIRECT_APPEND;
-
+			vessel->which_command = REDIRECT_APPEND; 
+		
+		/* Extract command and arguments */
 		command = strtok_r(raw, ">", &raw);
 		argument = strtok(command, " ");
-
-		strcpy(vessel->exec, "/bin/");
-		strcat(vessel->exec, argument);
-		vessel->args[count++] = argument;      	
-		strcpy(vessel->args[0], argument); 
-
+		strcpy(vessel->exec, argument);
+		vessel->args[count++] = argument;        	  
 		argument = strtok(NULL, " ");
 		while(argument != NULL)
 		{
@@ -93,9 +99,11 @@ void cmd_parser(cmd_t* vessel, char* raw)
 			argument = strtok(NULL, " "); 	
 		}
 
-		// pointing output file name
-		name_of_output_file = strtok_r(raw, ">", &raw);  
-		strcpy(vessel->output_file, name_of_output_file);     	
+		/* Extract output file name  */
+		out_file = strtok_r(raw, ">", &raw);
+	      	out_file = strtok(out_file, " "); 	
+		strcpy(vessel->output_file, out_file);      	
+
 	}
 }
 
@@ -115,7 +123,7 @@ void pipeline_2(cmd_t* cmd)
 		close(fd[1]);
 		//parent becomes process 1 
 
-		execv(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args); 
+		execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args); 
 	}	
 	else
 	{
@@ -128,7 +136,7 @@ void pipeline_2(cmd_t* cmd)
 		//close now unused FD
 		close(fd[0]); 
 		//child becomes process 2
-		execv(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 	
+		execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 	
 
 	}
 
@@ -150,7 +158,7 @@ void pipeline_3(cmd_t* cmd)
 		close(fd[1]);
 		//grandparent parent becomes process 1 
 
-		execv(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args); 
+		execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args); 
 	}	
 	else
 	{
@@ -171,7 +179,7 @@ void pipeline_3(cmd_t* cmd)
 			close(fd[0]); 
 			close(fd_2[1]); 
 			//parent becomes process 2
-			execv(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
+			execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
 
 		}
 		else
@@ -184,13 +192,13 @@ void pipeline_3(cmd_t* cmd)
 			//close now unused FD
 			close(fd_2[0]); 
 			//child becomes process 3
-			execv(cmd->pipe_cmds[2]->exec, cmd->pipe_cmds[2]->args);
+			execvp(cmd->pipe_cmds[2]->exec, cmd->pipe_cmds[2]->args);
 		} 	
 	}
 }
 
-
-void execute_command(cmd_t* cmd)
+/*These commands need to run in the child process*/
+void execute_command_c(cmd_t* cmd)
 {
 	int fd;
 
@@ -200,14 +208,14 @@ void execute_command(cmd_t* cmd)
 	switch(cmd->which_command)
 	{
 		case NORMAL:
-			execv(cmd->exec, cmd->args); 	
+			execvp(cmd->exec, cmd->args); 	
 			break; 
-		case REDIRECT_NORMAL:
+		case REDIRECT_NORMAL: 
 			fd = open(cmd->output_file, O_WRONLY | O_CREAT, 0644);	
 			dup2(fd, STDOUT_FILENO);
 			close(fd);
-			execv(cmd->exec, cmd->args);
-		    break; 
+			execvp(cmd->exec, cmd->args);
+		    	break; 
 		case REDIRECT_APPEND:
 			// case when output file does not exist
 			if (access(cmd->output_file, F_OK) == -1)
@@ -215,11 +223,10 @@ void execute_command(cmd_t* cmd)
 				fprintf(stderr, "Error: cannot open output file\n");
 				exit(1); 
 			}
-
 			fd = open(cmd->output_file, O_WRONLY | O_APPEND, 0644);	
 			dup2(fd, STDOUT_FILENO);
 			close(fd);
-			execv(cmd->exec, cmd->args);
+			execvp(cmd->exec, cmd->args);
 			break; 
 	        case PIPE_TWO: 
 			pipeline_2(cmd);  
@@ -228,34 +235,64 @@ void execute_command(cmd_t* cmd)
 			pipeline_3(cmd); 
 			break; 
 		case SLS: 
-			break; 
-		case FILES:
+			exit(0); 
+			break; 	
+		case PWD:
+			getcwd(cmd->cwd, sizeof(cmd->cwd)); 
+			printf("%s \n", cmd->cwd);
+		       	fflush(stdout);
+			exit(0);		
+			break;
+		case CD: 
+			exit(0); 
 			break; 
 		default: 
 			break; 
 
 	}
-
-		
+	
 }
 
+void execute_command_p(cmd_t* cmd)
+{
+	/*These commands need to be run in the parent*/
+	switch(cmd->which_command)
+	{
+		case SLS: 
+			getcwd(cmd->cwd, sizeof(cmd->cwd));
+			execute_sls(cmd); 
+			break; 
+		case CD: 
+			chdir(cmd->args[1]);
+			break;
+		default:
+			break; 
 
+	}
+}
 
+void execute_sls(cmd_t* cmd)
+{
+	DIR * cur_dir;
+        struct dirent *dp;
+	struct stat st;
 
+	cur_dir = opendir(cmd->cwd);
+	dp = readdir(cur_dir); 
+	if (dp == NULL)
+	{
+		fprintf(stderr, "Error: cannot open directory"); 
+		exit(1); 
+	}
+	do
+	{
+		stat(dp->d_name, &st); 
+        	printf("%s (%ld bytes) \n",dp->d_name, st.st_size);
+		dp = readdir(cur_dir); 
 
+	}while(dp !=NULL); 	
 
-
-
-
-
-
-
-
-
-
-
-
-
+}
 
 
 

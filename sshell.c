@@ -1,34 +1,33 @@
 #include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/wait.h>   
 #include <unistd.h>
 #include <strings.h>
 #include <string.h>
-#include "cmd_parser.h"		//contains parsing utilities
-#define MAX_BUFFER 512
-#define MAX_ARGS 17		//Includes argv[0]
+#include "cmd_parser.h"		//contains parsing utilites and macros
 
 int main(void)
 {
 
-
-
 	while(1)
 	{ 
+		int parent =0; 
 		cmd_t parser;
+		char raw_input[MAX_BUFFER]; 
 		for(int i =0; i<MAX_ARGS; ++i)		//fill arguments with zeroes 
 			parser.args[i] = NULL; 
 
 		printf("sshell@ucd$ "); 
 		fflush(stdout); 
 
-		fgets(parser.raw_input, 512, stdin);
-		//ret_cmd = process_command(user_input);
-		//Currently Phase1: basic commands
-		
-		cmd_parser(&parser,parser.raw_input); 
-		 	
+		fgets(raw_input, 512, stdin);
+		strcpy(parser.raw_input, raw_input); 
+		cmd_parser(&parser,raw_input); 
+		if(parser.which_command == CD || parser.which_command == SLS)
+			parent=1; 
+
 		if(!strcmp(parser.args[0], "exit"))
 		{
 			fprintf(stderr, "Bye...\n");
@@ -39,7 +38,7 @@ int main(void)
 		if (pid == 0) 
 		{
 			/* Child */
-			execute_command(&parser); 
+			execute_command_c(&parser); 
 			perror("execv");
 			exit(1);
 		} 
@@ -48,6 +47,9 @@ int main(void)
 			/* Parent */
 			int status;
 			waitpid(pid, &status, 0);
+			if(parent)
+				execute_command_p(&parser);
+
 			fprintf(stderr, "\n+ Completed '%s' [%d]\n",
 					parser.raw_input, WEXITSTATUS(status));
 		}
