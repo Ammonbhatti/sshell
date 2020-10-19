@@ -29,27 +29,27 @@ void cmd_parser(cmd_t* vessel, char* raw)
 			//Regular command with arguments
 			vessel->which_command = NORMAL; 
 
-			int count =0;
+			int count = 0;
 			
 			argument = strtok(raw, " "); 
 			strcpy(vessel->exec, argument);
-		        vessel->args[count++] = argument;
+		    vessel->args[count++] = argument;
 			//if pwd command
 			if(!strcmp(argument, pwd))
-                                vessel->which_command = PWD;
+                vessel->which_command = PWD;
 			//if cd command
 			//Note args[1] path to change to 
-                        else if(!strcmp(argument, cd))
-                                vessel->which_command = CD;
-		       	else if (!strcmp(argument, sls))
+            else if(!strcmp(argument, cd))
+                vessel->which_command = CD;
+		    else if (!strcmp(argument, sls))
 				vessel->which_command = SLS; 
 			else if(!strcmp(argument, exit))
 				vessel->which_command = EXIT; 
 			argument = strtok(NULL, " ");
-		        while(argument != NULL)
+		    while(argument != NULL)
 			{
 				vessel->args[count++] = argument;
-				argument = strtok(NULL, " "); 	
+				argument = strtok(NULL, " "); 
 			}	
 
 		}
@@ -213,13 +213,29 @@ void pipeline_3(cmd_t* cmd)
 void execute_command_c(cmd_t* cmd)
 {
 	int fd;
+	int argument_count = 0;
+	int argument_index = 0;
 
 	if(cmd == NULL)
 		fprintf(stderr, "NULL pointer passed in !");
        	
 	switch(cmd->which_command)
 	{
-		case NORMAL:
+		case NORMAL:	
+			// count number of arguments
+			while (cmd->args[argument_index] != NULL)
+			{
+				argument_count++;
+				argument_index++;
+			}
+
+			// detect error for too many arguments
+			if (argument_count > 16)
+			{
+				fprintf(stderr, "Error: too many process arguements\n");
+				exit(1); 
+			}
+
 			execvp(cmd->exec, cmd->args); 	
 			break; 
 		case REDIRECT_NORMAL: 
@@ -229,7 +245,7 @@ void execute_command_c(cmd_t* cmd)
 			execvp(cmd->exec, cmd->args);
 		    	break; 
 		case REDIRECT_APPEND:
-			// case when output file does not exist
+			// case when output file does not exist ERROR
 			if (access(cmd->output_file, F_OK) == -1)
 			{
 				fprintf(stderr, "Error: cannot open output file\n");
