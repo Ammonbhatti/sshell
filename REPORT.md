@@ -1,5 +1,6 @@
 # Project 1
-###Authors: 
+### Authors: 
+
 Ammon Bhatti, arbhatti [at] ucdavis [dot] edu 
 
 Benjamin Sher, bosher [at] ucdavis [dot] edu
