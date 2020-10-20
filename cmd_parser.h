@@ -1,9 +1,17 @@
 #ifndef CMDPARSER_H
 #define CMDPARSER_H
+#include <stdio.h>
 #include <string.h>
-#include <stdbool.h>
+#include <strings.h>
 #include <stdlib.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+
 #define MAX_BUFFER 512
 #define MAX_ARGS 16
 #define DEFAULT_SIZE 100   
@@ -34,15 +42,21 @@ typedef struct cmd_t
 	//file commands
 	char cwd[DEFAULT_SIZE];	
 	/*Note args[1] is pointing to path for cd*/
+	
+	//error handling
+	int parser_error; 
 
 } cmd_t; 
 
 
-void cmd_parser(cmd_t* vessel, char* raw); 
+void cmd_parser(cmd_t* vessel, char* raw);
+void handle_normal(cmd_t* vessel, char* raw); 
+void handle_redirects(cmd_t* vessel, char* raw);
+void handle_pipes(cmd_t* vessel, char* raw);
+void handle_errors(cmd_t* vessel, char* raw);
 void execute_command_c(cmd_t* cmd);
 void execute_command_p(cmd_t* cmd); 
 void execute_sls(cmd_t* cmd); 
 void print_main(cmd_t* cmd, int status); 
-
 
 #endif 

@@ -1,11 +1,3 @@
-#include <stdio.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/wait.h>   
-#include <unistd.h>
-#include <strings.h>
-#include <string.h>
 #include "cmd_parser.h"		//contains parsing utilites and macros
 
 int main(void)
@@ -14,8 +6,8 @@ int main(void)
 	while(1)
 	{ 
 		int parent =0; 
-		cmd_t parser;
 		char raw_input[MAX_BUFFER]; 
+		cmd_t parser;
 		for(int i =0; i<MAX_ARGS; ++i)		//fill arguments with zeroes 
 			parser.args[i] = NULL; 
 
@@ -27,7 +19,8 @@ int main(void)
 		cmd_parser(&parser,raw_input); 
 		if(parser.which_command == CD || parser.which_command == SLS)
 			parent=1; 
-
+		if(parser.parser_error)
+			continue; 
 		int pid = fork(); 
 		if (pid == 0) 
 		{

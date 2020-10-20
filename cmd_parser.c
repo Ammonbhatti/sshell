@@ -1,118 +1,182 @@
 #include "cmd_parser.h"
-#include <stdio.h>
-#include <fcntl.h> // for open
-#include <unistd.h> // for close
-#include <sys/stat.h>
-#include <dirent.h>
 
-//Pass struct by reference
+
+/* 
+ * Function: cmd_parser
+ * -----------------------
+ * Populates the internal variables of the cmd_t struct
+ * by parsing the string in raw. 
+ * 
+ * vessel: pointer to cmd_t object (not on the heap)
+ * raw : string containing raw input from the terminal
+ *  
+ * */
 void cmd_parser(cmd_t* vessel, char* raw)
 {
 
-	char *argument, *ui;		//used to process args including argv[0] 
-	char pwd[]= "pwd", cd[]="cd", sls[] = "sls", exit[]="exit"; 
- 
+	/*String processing variables */
+	int pipe_flag = 0, file_redirect_flag =0;
+ 	char* ui;
+	/*Initializes cmd_t struct*/
 	vessel->mallocs= 0;
+	vessel->parser_error = 0; 
 	vessel->child1_status = 0; 
-	vessel->child2_status = 0; 
+	vessel->child2_status = 0;
 	/* Get rid of '\n' at the end of the command */
 	ui  = strchr(raw, '\n');
         if (ui)	*ui = '\0';
 	ui  = strchr(vessel->raw_input, '\n');
-        if (ui) *ui = '\0';	
-	
-	if(strchr(raw, '>') == NULL)
+        if (ui) *ui = '\0'; 	
+	pipe_flag = strchr(raw, '|') != NULL;
+	file_redirect_flag = strchr(raw, '>') != NULL;
+	if(pipe_flag && file_redirect_flag)
 	{
-		if(strchr(raw, '|') == NULL)
+		fprintf(stderr, "Error: mislocated output redirection\n"); 
+		vessel->parser_error = 1;
+		return; 
+	}
+	if(!file_redirect_flag)
+	{
+		if(!pipe_flag)
 		{
-
-			//Regular command with arguments
-			vessel->which_command = NORMAL; 
-
-			int count = 0;
-			
-			argument = strtok(raw, " "); 
-			strcpy(vessel->exec, argument);
-		    vessel->args[count++] = argument;
-			//if pwd command
-			if(!strcmp(argument, pwd))
-                vessel->which_command = PWD;
-			//if cd command
-			//Note args[1] path to change to 
-            else if(!strcmp(argument, cd))
-                vessel->which_command = CD;
-		    else if (!strcmp(argument, sls))
-				vessel->which_command = SLS; 
-			else if(!strcmp(argument, exit))
-				vessel->which_command = EXIT; 
-			argument = strtok(NULL, " ");
-		    while(argument != NULL)
-			{
-				vessel->args[count++] = argument;
-				argument = strtok(NULL, " "); 
-			}	
-
+			handle_normal(vessel, raw); 
 		}
 		else
 		{
-			//Handle pipes
-			int index = 0; 	
-			/*Assumes that exit will not be passed in 
-			 * as a piped command. */
-			vessel->args[0] = "Random command";	
-			argument = strtok_r(raw, "|", &raw);
-		       	while(argument != NULL)
-			{	
-				//recursize call to handle NORMAL command
-				vessel->pipe_cmds[index] = (cmd_t*) malloc(sizeof(cmd_t));
-				cmd_parser(vessel->pipe_cmds[index++], argument); 	
-				argument = strtok_r(raw, "|", &raw); 	
-			}
-			vessel->mallocs = index; 
-			if(index==2)
-				vessel->which_command = PIPE_TWO; 
-			else if(index == 3)
-				vessel->which_command = PIPE_THREE; 
-			else
-				fprintf(stderr, "Incorrect number of pipes"); 
+			handle_pipes(vessel, raw); 
 		}		
-
 	}
-
 	else
-	{
-		//Handle file redirection
-		int count =0; 
-		char *command, *out_file;
-		// check for append command
-		if (strstr(raw, ">>") == NULL)
-			vessel->which_command = REDIRECT_NORMAL;
-		else
-			vessel->which_command = REDIRECT_APPEND; 
-		
-		/* Extract command and arguments */
-		command = strtok_r(raw, ">", &raw);
-		argument = strtok(command, " ");
-		strcpy(vessel->exec, argument);
-		vessel->args[count++] = argument;        	  
-		argument = strtok(NULL, " ");
-		while(argument != NULL)
-		{
-			vessel->args[count++] = argument;
-			argument = strtok(NULL, " "); 	
-		}
-
-		/* Extract output file name  */
-		out_file = strtok_r(raw, ">", &raw);
-	      	out_file = strtok(out_file, " "); 	
-		strcpy(vessel->output_file, out_file);      	
-
-	}
+	{     	
+		handle_redirects(vessel, raw); 
+	} 
 }
 
+void handle_normal(cmd_t* vessel, char* raw)
+{
+	//Regular command with arguments
+	int count = 0;
+	char *argument;	 
+	char pwd[]= "pwd", cd[]="cd", sls[] = "sls", exit[]="exit"; 
+	
+	vessel->which_command = NORMAL; 
+	argument = strtok(raw, " "); 
+	strcpy(vessel->exec, argument);
+	vessel->args[count++] = argument;
+	//if pwd command
+	if(!strcmp(argument, pwd))
+                vessel->which_command = PWD;
+	//if cd command
+	//Note args[1] path to change to 
+        else if(!strcmp(argument, cd))
+                vessel->which_command = CD;
+	else if (!strcmp(argument, sls))
+		vessel->which_command = SLS; 
+	else if(!strcmp(argument, exit))
+		vessel->which_command = EXIT; 
+	argument = strtok(NULL, " ");
+	while(argument != NULL)
+	{
+		/*Too many arguments check*/
+		if(count -1 > MAX_ARGS)
+		{
+			fprintf(stderr, "Error: too many process arguements\n");
+                        vessel->parser_error = 1;
+			return; 
+		}
+		vessel->args[count++] = argument;
+		argument = strtok(NULL, " "); 
+	}
+		
+
+}
+
+void handle_redirects(cmd_t* vessel, char* raw)
+{
+	//Handle file redirection
+	int count =0, first =0; 
+	char *command, *out_file, *argument, *symbol;
+	// check for append command
+	symbol = strchr(raw, '>'); 
+	if (strstr(raw, ">>") == NULL)
+		vessel->which_command = REDIRECT_NORMAL;
+	else
+		vessel->which_command = REDIRECT_APPEND; 
+		
+	/* Extract command and arguments */
+	command = strtok_r(raw, ">", &raw);
+	if(symbol < command) first =1 ; 	
+	argument = strtok(command, " ");
+	strcpy(vessel->exec, argument);
+	vessel->args[count++] = argument;        	  
+	argument = strtok(NULL, " ");
+	while(argument != NULL)
+	{
+		vessel->args[count++] = argument;
+		argument = strtok(NULL, " "); 	
+	}
+	/* Extract output file name  */
+	out_file = strtok_r(raw, ">", &raw);
+	/* Error checking */
+	if(out_file == NULL && first)
+	{
+		fprintf(stderr, "Error: missing command\n");
+                vessel->parser_error = 1;
+		return; 
+	}
+	if(out_file == NULL && !first)
+        {
+                fprintf(stderr, "Error: no output file\n");
+                vessel->parser_error = 1;
+		return; 
+	}
+	out_file = strtok(out_file, " "); 
+	if (access(vessel->output_file, F_OK) == -1)
+        {
+        	fprintf(stderr, "Error: cannot open output file\n");
+                vessel->parser_error = 1; 
+		return; 
+        }
+	strcpy(vessel->output_file, out_file); 
+}
+
+void handle_pipes(cmd_t* vessel, char* raw)
+{
+	//Handle pipes
+	int index = 0; 	
+	char* argument;
+	/*Assumes that exit will not be passed in 
+	 * as a piped command. */
+	vessel->args[0] = "Random command";	
+	argument = strtok_r(raw, "|", &raw);
+	while(argument != NULL)
+	{	
+		//recursize call to handle NORMAL command
+		vessel->pipe_cmds[index] = (cmd_t*) malloc(sizeof(cmd_t));
+		cmd_parser(vessel->pipe_cmds[index++], argument); 	
+		argument = strtok_r(raw, "|", &raw); 	
+	}
+	vessel->mallocs = index; 
+	if(index==2)
+		vessel->which_command = PIPE_TWO; 
+	else if(index == 3)
+		vessel->which_command = PIPE_THREE; 
+	else
+	{
+		fprintf(stderr, "Error: missing commands\n");
+		vessel->parser_error = 1; 
+	}	
+
+}
+
+/*
+void handle_errors(cmd_t* vessel,char* raw)
+{
+	// detect error for too many arguments
+}
+*/
 void pipeline_2(cmd_t* cmd)
 {
-
 	int status1 =0, pid; 
 	int fd[2]; 
 	pipe(fd);	
@@ -136,7 +200,6 @@ void pipeline_2(cmd_t* cmd)
 	}	
 	else
 	{
-
 		//Child	
                 //no need for read access
                 close(fd[0]);
@@ -147,12 +210,10 @@ void pipeline_2(cmd_t* cmd)
                 //child becomes process 1 
                 execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args);
 	}
-
 }
 
 void pipeline_3(cmd_t* cmd)
 {
-
 	int fd_1[2], fd_2[2]; 
 	int status1, status2, pid1, pid2; 
 	pipe(fd_1); 
@@ -173,7 +234,6 @@ void pipeline_3(cmd_t* cmd)
 	else
 	{
 		pipe(fd_2); 
-
 		if((pid2= fork()) > 0)
 		{
 			//Parent
@@ -213,30 +273,17 @@ void pipeline_3(cmd_t* cmd)
 void execute_command_c(cmd_t* cmd)
 {
 	int fd;
-	int argument_count = 0;
-	int argument_index = 0;
-
 	if(cmd == NULL)
 		fprintf(stderr, "NULL pointer passed in !");
        	
 	switch(cmd->which_command)
 	{
 		case NORMAL:	
-			// count number of arguments
-			while (cmd->args[argument_index] != NULL)
+			if(execvp(cmd->exec, cmd->args) == -1)
 			{
-				argument_count++;
-				argument_index++;
-			}
-
-			// detect error for too many arguments
-			if (argument_count > 16)
-			{
-				fprintf(stderr, "Error: too many process arguements\n");
-				exit(1); 
-			}
-
-			execvp(cmd->exec, cmd->args); 	
+				fprintf(stderr, "Error: command not found\n");
+                                exit(1);
+			}	
 			break; 
 		case REDIRECT_NORMAL: 
 			fd = open(cmd->output_file, O_WRONLY | O_CREAT, 0644);	
@@ -245,12 +292,6 @@ void execute_command_c(cmd_t* cmd)
 			execvp(cmd->exec, cmd->args);
 		    	break; 
 		case REDIRECT_APPEND:
-			// case when output file does not exist ERROR
-			if (access(cmd->output_file, F_OK) == -1)
-			{
-				fprintf(stderr, "Error: cannot open output file\n");
-				exit(1); 
-			}
 			fd = open(cmd->output_file, O_WRONLY | O_APPEND, 0644);	
 			dup2(fd, STDOUT_FILENO);
 			close(fd);
@@ -272,16 +313,15 @@ void execute_command_c(cmd_t* cmd)
 			exit(0);		
 			break;
 		case CD: 
+			if(chdir(cmd->args[1]) == -1) exit(1);
 			exit(0); 
 			break;
-		case EXIT: 
+		case EXIT:  
 			exit(0); 
 			break;	
 		default: 
 			break; 
-
 	}
-	
 }
 
 void execute_command_p(cmd_t* cmd)
@@ -294,11 +334,11 @@ void execute_command_p(cmd_t* cmd)
 			execute_sls(cmd); 
 			break; 
 		case CD: 
-			chdir(cmd->args[1]);
+			if(chdir(cmd->args[1]) == -1)
+				fprintf(stderr, "Error: cannot cd into directory\n");
 			break;
 		default:
 			break; 
-
 	}
 }
 
@@ -322,22 +362,20 @@ void execute_sls(cmd_t* cmd)
 		dp = readdir(cur_dir); 
 
 	}while(dp !=NULL); 	
-
 }
 
 void print_main(cmd_t* parser, int status)
 {
-
 	switch(parser->which_command)
 	{
 		case PIPE_TWO:
-			fprintf(stderr, "\n+ Completed '%s' [%d][%d]\n",
+			fprintf(stderr, "+ Completed '%s' [%d][%d]\n",
                                         parser->raw_input, 
 					parser->child1_status,
 					WEXITSTATUS(status)); 
 			break; 
 		case PIPE_THREE:
-			fprintf(stderr, "\n+ Completed '%s' [%d][%d][%d]\n",
+			fprintf(stderr, "+ Completed '%s' [%d][%d][%d]\n",
                                         parser->raw_input,
 				        parser->child1_status,
                                         parser->child2_status,	
@@ -345,11 +383,11 @@ void print_main(cmd_t* parser, int status)
 			break;
 		case EXIT:
                         fprintf(stderr, "Bye...\n");
-			fprintf(stderr, "\n+ Completed '%s' [%d]\n",
+			fprintf(stderr, "+ Completed '%s' [%d]\n",
                                         parser->raw_input, WEXITSTATUS(status));
 			break; 
 		default:
-			fprintf(stderr, "\n+ Completed '%s' [%d]\n",
+			fprintf(stderr, "+ Completed '%s' [%d]\n",
                                         parser->raw_input, WEXITSTATUS(status));
 			break;
 	}
