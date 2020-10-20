@@ -54,7 +54,7 @@ void cmd_parser(cmd_t* vessel, char* raw)
 
 void handle_normal(cmd_t* vessel, char* raw)
 {
-	//Regular command with arguments
+	/*Regular command with arguments*/
 	int count = 0;
 	char *argument;	 
 	char pwd[]= "pwd", cd[]="cd", sls[] = "sls", exit[]="exit"; 
@@ -63,11 +63,10 @@ void handle_normal(cmd_t* vessel, char* raw)
 	argument = strtok(raw, " "); 
 	strcpy(vessel->exec, argument);
 	vessel->args[count++] = argument;
-	//if pwd command
+	/* checks for commands that need to be implemented*/
 	if(!strcmp(argument, pwd))
                 vessel->which_command = PWD;
-	//if cd command
-	//Note args[1] path to change to 
+	/*Note args[1] will be the output file name*/ 
         else if(!strcmp(argument, cd))
                 vessel->which_command = CD;
 	else if (!strcmp(argument, sls))
@@ -93,10 +92,10 @@ void handle_normal(cmd_t* vessel, char* raw)
 
 void handle_redirects(cmd_t* vessel, char* raw)
 {
-	//Handle file redirection
+	/*Handle file redirection*/
 	int count =0, first =0; 
 	char *command, *out_file, *argument, *symbol;
-	// check for append command
+	/* symbol will be used to catch an incomplete command*/
 	symbol = strchr(raw, '>'); 
 	if (strstr(raw, ">>") == NULL)
 		vessel->which_command = REDIRECT_NORMAL;
@@ -117,7 +116,7 @@ void handle_redirects(cmd_t* vessel, char* raw)
 	}
 	/* Extract output file name  */
 	out_file = strtok_r(raw, ">", &raw);
-	/* Error checking */
+	/* Parser error checking */
 	if(out_file == NULL && first)
 	{
 		fprintf(stderr, "Error: missing command\n");
@@ -142,17 +141,18 @@ void handle_redirects(cmd_t* vessel, char* raw)
 
 void handle_pipes(cmd_t* vessel, char* raw)
 {
-	//Handle pipes
+	/*Process pipe commands*/
 	int index = 0; 	
 	char* argument;
-	/*Assumes that exit will not be passed in 
-	 * as a piped command. */
+	/*Assumes that exit will not be passed in     *
+	 * as a piped command. The cmd_t.exec and     *
+	 * cmd_t.args[0] is filled with a dummy string*/
 	vessel->args[0] = "Random command";	
 	argument = strtok_r(raw, "|", &raw);
 	while(argument != NULL)
 	{	
-		//recursize call to handle NORMAL command
 		vessel->pipe_cmds[index] = (cmd_t*) malloc(sizeof(cmd_t));
+		/* Recursive call to cmd_parser() to parse normal sub commad */
 		cmd_parser(vessel->pipe_cmds[index++], argument); 	
 		argument = strtok_r(raw, "|", &raw); 	
 	}
@@ -169,45 +169,40 @@ void handle_pipes(cmd_t* vessel, char* raw)
 
 }
 
-/*
-void handle_errors(cmd_t* vessel,char* raw)
-{
-	// detect error for too many arguments
-}
-*/
 void pipeline_2(cmd_t* cmd)
 {
 	int status1 =0, pid; 
 	int fd[2]; 
-	pipe(fd);	
+	if(pipe(fd) == -1)
+	{
+		fprintf(stderr, "Error: cannot get create pipe\n");
+                exit(1);
+	}	
 	/* Note the program outputing to the terminal must be in the  *
 	 * parent process. The children cannot output to the terminal *
-	 * due to the SIGTTIN/ SIGTTOU                                */
+	 * due to the SIGTTIN/ SIGTTOU signals.                       */
 	pid = fork();
 	if(pid > 0)
 	{
-		//Parent
-                //No need for write access
+		/*Parent */
+                /*No need for write access to pipe*/
                 close(fd[1]);
-                //Replace stdin with pipe
+                /* stdin is received from the pipe*/
                 dup2(fd[0], STDIN_FILENO);
-                //close now unused FD
                 close(fd[0]);
-                //child becomes process 2
+                /* Catches errors from children */
 		waitpid(pid, &status1, 0); 
 		cmd->child1_status = WEXITSTATUS(status1); 
                 execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
 	}	
 	else
 	{
-		//Child	
-                //no need for read access
+		/*Child*/
+                /* No need for read access from pipe */
                 close(fd[0]);
-                //replace stdout with pipe
+                /* stdout goes to pipe */
                 dup2(fd[1], STDOUT_FILENO);
-                //Close now unused FD
                 close(fd[1]);
-                //child becomes process 1 
                 execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args);
 	}
 }
@@ -215,40 +210,43 @@ void pipeline_2(cmd_t* cmd)
 void pipeline_3(cmd_t* cmd)
 {
 	int fd_1[2], fd_2[2]; 
-	int status1, status2, pid1, pid2; 
-	pipe(fd_1); 
+	int status1, status2, pid1, pid2;
+	if(pipe(fd_1) == -1)
+	{
+		fprintf(stderr, "Error: cannot get create pipe\n");
+                exit(1);
+	}
 	if((pid1 =fork()) > 0)
 	{
-		//Grandparent
-		//No need for write access
+		/*Grandparent*/
                 close(fd_1[1]);
-                //Replace stdin with pipe
                 dup2(fd_1[0], STDIN_FILENO);
-                //close now unused FD
                 close(fd_1[0]);
-                //grandparent becomes process 3
+                /*grandparent catches error from child*/
 		waitpid(pid1, &status1, 0);
                	cmd->child1_status = WEXITSTATUS(status1);
                 execvp(cmd->pipe_cmds[2]->exec, cmd->pipe_cmds[2]->args); 
 	}	
 	else
 	{
-		pipe(fd_2); 
+		if(pipe(fd_2) == -1)
+		{
+			fprintf(stderr, "Error: cannot get create pipe\n");
+                	exit(1);
+		}	
 		if((pid2= fork()) > 0)
 		{
-			//Parent
-			//No need for write access pipe #1
+			/*Parent*/
+			/*No need for write access pipe #1*/
 			close(fd_2[1]);
-			//No need for read access pipe #2 
+			/*No need for read access pipe #2 */
 			close(fd_1[0]);  
-			//Replace stdin with pipe
-			dup2(fd_2[0], STDIN_FILENO);
-			//Replace stdout with pipe2 
+			dup2(fd_2[0], STDIN_FILENO); 
 			dup2(fd_1[1], STDOUT_FILENO); 
-			//close now unused FDs 
+			/* Close unused file descriptors  */
 			close(fd_2[0]); 
 			close(fd_1[1]); 
-			//parent becomes process 2
+			/*Parent checks for errors from child*/
 			waitpid(pid2, &status2, 0);
 	                cmd->child2_status = WEXITSTATUS(status2);
 			execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
@@ -256,14 +254,10 @@ void pipeline_3(cmd_t* cmd)
 		}
 		else
 		{
-			//Child
-			//no need for read access
+			/*Child*/
 	                close(fd_2[0]);
-                	//replace stdout with pipe
                 	dup2(fd_2[1], STDOUT_FILENO);
-                	//Close now unused FD
-                	close(fd_2[1]);
-			//childe becomes process 1
+                	close(fd_2[1]); 
                 	execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args);
 		} 	
 	}
@@ -307,7 +301,11 @@ void execute_command_c(cmd_t* cmd)
 			exit(0); 
 			break; 	
 		case PWD:
-			getcwd(cmd->cwd, sizeof(cmd->cwd)); 
+			if(!getcwd(cmd->cwd, sizeof(cmd->cwd)))
+			{
+				fprintf(stderr, "Error: cannot get current directory\n"); 
+				exit(1); 
+			}	
 			printf("%s \n", cmd->cwd);
 		       	fflush(stdout);
 			exit(0);		
@@ -330,7 +328,11 @@ void execute_command_p(cmd_t* cmd)
 	switch(cmd->which_command)
 	{
 		case SLS: 
-			getcwd(cmd->cwd, sizeof(cmd->cwd));
+			if(!getcwd(cmd->cwd, sizeof(cmd->cwd)))
+			{
+				fprintf(stderr, "Error: cannot get current directory\n");
+                                exit(1);
+			}
 			execute_sls(cmd); 
 			break; 
 		case CD: 
@@ -366,6 +368,7 @@ void execute_sls(cmd_t* cmd)
 
 void print_main(cmd_t* parser, int status)
 {
+	/*Prints based on the different cases */
 	switch(parser->which_command)
 	{
 		case PIPE_TWO:

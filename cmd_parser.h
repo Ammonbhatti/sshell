@@ -10,8 +10,6 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include <unistd.h>
-
-
 #define MAX_BUFFER 512
 #define MAX_ARGS 16
 #define DEFAULT_SIZE 100   
@@ -19,35 +17,32 @@
 
 /*This structure handles the raw input from the terminal *
  *and holds the results of the parser function.          */
-
 enum CMD_TYPE {NORMAL, REDIRECT_NORMAL, REDIRECT_APPEND, PIPE_TWO, PIPE_THREE, SLS, PWD, CD, EXIT}; 
 
 typedef struct cmd_t 
 {
 	
 	enum CMD_TYPE which_command; 
-
 	char raw_input[MAX_BUFFER];
         char exec[DEFAULT_SIZE];		 	
 	char* args[MAX_ARGS];
 	
-	//handling redirection to output file 
+	/*Used to hold output file name redirection */
 	char output_file[DEFAULT_SIZE]; 		
 	
-	//handling pipes
+	/*Pipe command variables*/
 	unsigned mallocs; 
 	int child1_status, child2_status; 
 	struct cmd_t* pipe_cmds[MAX_PIPE_SIZE];
 	
-	//file commands
+	/*Current working directory*/
 	char cwd[DEFAULT_SIZE];	
-	/*Note args[1] is pointing to path for cd*/
+	/*Note args[1] is pointing to path for cd */
 	
-	//error handling
+	/*Useful for not printing +completed */
 	int parser_error; 
 
 } cmd_t; 
-
 
 void cmd_parser(cmd_t* vessel, char* raw);
 void handle_normal(cmd_t* vessel, char* raw); 

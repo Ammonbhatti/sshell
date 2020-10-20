@@ -1,24 +1,27 @@
-#include "cmd_parser.h"		//contains parsing utilites and macros
+#include "cmd_parser.h"
 
 int main(void)
 {
-
 	while(1)
 	{ 
-		int parent =0; 
+		int parent_cmd =0;
 		char raw_input[MAX_BUFFER]; 
 		cmd_t parser;
-		for(int i =0; i<MAX_ARGS; ++i)		//fill arguments with zeroes 
+		/*Initialize args pointer array*/
+		for(int i =0; i<MAX_ARGS; ++i) 
 			parser.args[i] = NULL; 
 
 		printf("sshell@ucd$ "); 
 		fflush(stdout); 
-
-		fgets(raw_input, MAX_BUFFER, stdin);
+		if(!fgets(raw_input, MAX_BUFFER, stdin))
+		{
+			fprintf(stderr, "Error: input error occured");
+		       	continue; 	
+		}
 		strcpy(parser.raw_input, raw_input); 
 		cmd_parser(&parser,raw_input); 
 		if(parser.which_command == CD || parser.which_command == SLS)
-			parent=1; 
+			parent_cmd=1; 
 		if(parser.parser_error)
 			continue; 
 		int pid = fork(); 
@@ -34,9 +37,10 @@ int main(void)
 			/* Parent */
 			int status;
 			waitpid(pid, &status, 0);
-			if(parent)
+			if(parent_cmd)
+				/*sls, cd*/
 				execute_command_p(&parser);
-			
+			/*Prints based on different cases */
 			print_main(&parser, status); 
 		}
 		for(unsigned i = 0; i<parser.mallocs; i++)
@@ -44,6 +48,5 @@ int main(void)
 		if(parser.which_command == EXIT)
 			break; 
 	}
-
 	return 0; 
 }
