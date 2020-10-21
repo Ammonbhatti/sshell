@@ -42,6 +42,9 @@ typedef struct cmd_t
 	/*Useful for not printing +completed */
 	int parser_error; 
 
+	/*Specfically for tester*/
+	int command_finished; 
+
 } cmd_t; 
 
 void cmd_parser(cmd_t* vessel, char* raw);

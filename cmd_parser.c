@@ -372,13 +372,13 @@ void print_main(cmd_t* parser, int status)
 	switch(parser->which_command)
 	{
 		case PIPE_TWO:
-			fprintf(stderr, "+ Completed '%s' [%d][%d]\n",
+			fprintf(stderr, "+ completed '%s' [%d][%d]\n",
                                         parser->raw_input, 
 					parser->child1_status,
 					WEXITSTATUS(status)); 
 			break; 
 		case PIPE_THREE:
-			fprintf(stderr, "+ Completed '%s' [%d][%d][%d]\n",
+			fprintf(stderr, "+ completed '%s' [%d][%d][%d]\n",
                                         parser->raw_input,
 				        parser->child1_status,
                                         parser->child2_status,	
@@ -386,11 +386,11 @@ void print_main(cmd_t* parser, int status)
 			break;
 		case EXIT:
                         fprintf(stderr, "Bye...\n");
-			fprintf(stderr, "+ Completed '%s' [%d]\n",
+			fprintf(stderr, "+ completed '%s' [%d]\n",
                                         parser->raw_input, WEXITSTATUS(status));
 			break; 
 		default:
-			fprintf(stderr, "+ Completed '%s' [%d]\n",
+			fprintf(stderr, "+ completed '%s' [%d]\n",
                                         parser->raw_input, WEXITSTATUS(status));
 			break;
 	}
