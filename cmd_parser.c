@@ -351,7 +351,11 @@ void execute_sls(cmd_t* cmd)
 	DIR * cur_dir;
         struct dirent *dp;
 	struct stat st;
-
+	if(!getcwd(cmd->cwd, sizeof(cmd->cwd)))
+	{
+		fprintf(stderr, "Error: cannot get current directory\n");
+		exit(1);
+	}
 	cur_dir = opendir(cmd->cwd);
 	dp = readdir(cur_dir); 
 	if (dp == NULL)
@@ -361,6 +365,12 @@ void execute_sls(cmd_t* cmd)
 	}
 	do
 	{
+		/*Don't read hidden files  */
+		if(dp->d_name[0] == '.')
+		{
+			dp = readdir(cur_dir);
+			continue; 
+		}
 		stat(dp->d_name, &st); 
         	printf("%s (%ld bytes)\n",dp->d_name, st.st_size);
 		dp = readdir(cur_dir); 
