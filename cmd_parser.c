@@ -130,13 +130,13 @@ void handle_redirects(cmd_t* vessel, char* raw)
 		return; 
 	}
 	out_file = strtok(out_file, " "); 
+	strcpy(vessel->output_file, out_file);
 	if (access(vessel->output_file, F_OK) == -1)
         {
         	fprintf(stderr, "Error: cannot open output file\n");
                 vessel->parser_error = 1; 
 		return; 
-        }
-	strcpy(vessel->output_file, out_file); 
+        } 
 }
 
 void handle_pipes(cmd_t* vessel, char* raw)
@@ -306,7 +306,7 @@ void execute_command_c(cmd_t* cmd)
 				fprintf(stderr, "Error: cannot get current directory\n"); 
 				exit(1); 
 			}	
-			printf("%s \n", cmd->cwd);
+			printf("%s\n", cmd->cwd);
 		       	fflush(stdout);
 			exit(0);		
 			break;
@@ -360,7 +360,7 @@ void execute_sls(cmd_t* cmd)
 	do
 	{
 		stat(dp->d_name, &st); 
-        	printf("%s (%ld bytes) \n",dp->d_name, st.st_size);
+        	printf("%s (%ld bytes)\n",dp->d_name, st.st_size);
 		dp = readdir(cur_dir); 
 
 	}while(dp !=NULL); 	

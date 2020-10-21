@@ -6,14 +6,14 @@ int main(void)
 	{ 
 		char raw_input[MAX_BUFFER];
 	       	char* sub_command; 	
-		//printf("sshell@ucd$ "); 
-		fflush(stdout);	
+		printf("sshell@ucd$ ");
+	       	printf("\n");	
+		fflush(stdout); 
 		if(!fgets(raw_input, MAX_BUFFER, stdin))
 		{
 			fprintf(stderr, "Error: input error occured");
 		       	continue; 	
-		}
-		fflush(stdin); 
+		}  
 		sub_command = strtok(raw_input, "\n");
 		do
 		{
@@ -34,8 +34,8 @@ int main(void)
 			int pid = fork(); 
 			if (pid == 0) 
 			{
-				/* Child */
-				execute_command_c(&parser); 
+				/* Child */ 
+				execute_command_c(&parser);	
 				perror("execv");
 				exit(1);
 			} 
@@ -56,6 +56,7 @@ int main(void)
 			if(parser.which_command == EXIT)
 				return 0; 
 			sub_command = strtok(NULL, "\n"); 
+			fflush(stdout); 
 		}while(sub_command != NULL); 	
 	}
 	return 0; 
