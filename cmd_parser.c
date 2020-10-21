@@ -93,7 +93,7 @@ void handle_normal(cmd_t* vessel, char* raw)
 void handle_redirects(cmd_t* vessel, char* raw)
 {
 	/*Handle file redirection*/
-	int count =0, first =0; 
+	int count =0, first =0, fd; 
 	char *command, *out_file, *argument, *symbol;
 	/* symbol will be used to catch an incomplete command*/
 	symbol = strchr(raw, '>'); 
@@ -131,12 +131,14 @@ void handle_redirects(cmd_t* vessel, char* raw)
 	}
 	out_file = strtok(out_file, " "); 
 	strcpy(vessel->output_file, out_file);
-	if (access(vessel->output_file, F_OK) == -1)
-        {
-        	fprintf(stderr, "Error: cannot open output file\n");
-                vessel->parser_error = 1; 
-		return; 
-        } 
+	fd = open(vessel->output_file, O_WRONLY | O_CREAT, 0644); 
+	if(fd == -1)
+	{
+		fprintf(stderr, "Error: cannot open output file\n");
+                vessel->parser_error = 1;
+                return;
+	}
+	close(fd); 
 }
 
 void handle_pipes(cmd_t* vessel, char* raw)
