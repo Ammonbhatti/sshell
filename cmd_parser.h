@@ -23,7 +23,7 @@ typedef struct cmd_t
 {
 	enum CMD_TYPE which_command; 
 	char raw_input[MAX_BUFFER];
-    char exec[DEFAULT_SIZE];		 	
+	char exec[DEFAULT_SIZE];		 	
 	char* args[MAX_ARGS];
 
 	/*Used to hold output file name redirection */
@@ -41,7 +41,7 @@ typedef struct cmd_t
 
 	/*Useful for not printing +completed */
 	int parser_error; 
-	
+
 	/*Specfically for tester*/
 	int command_finished; 
 

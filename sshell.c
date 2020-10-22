@@ -5,14 +5,14 @@ int main(void)
 	while(1)
 	{ 
 		char raw_input[MAX_BUFFER];
-	    	char* sub_command; 	
+		char* sub_command; 	
 		printf("sshell@ucd$ ");
-	    	printf("\n");	
+		printf("\n");	
 		fflush(stdout); 
 		if(!fgets(raw_input, MAX_BUFFER, stdin))
 		{
 			fprintf(stderr, "Error: input error occured");
-		    	continue; 	
+			continue; 	
 		}  
 		sub_command = strtok(raw_input, "\n");
 		do
@@ -20,12 +20,12 @@ int main(void)
 			cmd_t parser; 	
 			int parent_cmd = 0;
 			/*Initialize args pointer array*/
-	        	for(int i =0; i<MAX_ARGS; ++i)
+			for(int i =0; i<MAX_ARGS; ++i)
 			{
-                		parser.args[i] = NULL;
+				parser.args[i] = NULL;
 			}
-	        	strcpy(parser.raw_input, sub_command);
-		    	strcat(parser.raw_input, "\n");
+			strcpy(parser.raw_input, sub_command);
+			strcat(parser.raw_input, "\n");
 			strcat(sub_command, "\n"); 	
 			cmd_parser(&parser,sub_command); 
 			if(parser.which_command == CD || parser.which_command == SLS)
