@@ -24,12 +24,12 @@ void cmd_parser(cmd_t* vessel, char* raw)
 
 	/* Get rid of '\n' at the end of the command */
 	ui  = strchr(raw, '\n');
-    if (ui)	
+    	if (ui)	
 	{
 		*ui = '\0';
 	}
 	ui  = strchr(vessel->raw_input, '\n');
-    if (ui)
+    	if (ui)
 	{ 
 		*ui = '\0'; 
 	}	
@@ -74,8 +74,8 @@ void handle_normal(cmd_t* vessel, char* raw)
         vessel->which_command = PWD;
 
 	/*Note args[1] will be the output file name*/ 
-    else if(!strcmp(argument, cd))
-        vessel->which_command = CD;
+    	else if(!strcmp(argument, cd))
+        	vessel->which_command = CD;
 	else if (!strcmp(argument, sls))
 		vessel->which_command = SLS; 
 	else if(!strcmp(argument, exit))
@@ -84,10 +84,10 @@ void handle_normal(cmd_t* vessel, char* raw)
 	while(argument != NULL)
 	{
 		/*Too many arguments check*/
-		if(count -1 > MAX_ARGS)
+		if(count >= MAX_ARGS)
 		{
 			fprintf(stderr, "Error: too many process arguments\n");
-            vessel->parser_error = 1;
+            		vessel->parser_error = 1;
 			return; 
 		}
 		vessel->args[count++] = argument;
@@ -128,13 +128,13 @@ void handle_redirects(cmd_t* vessel, char* raw)
 	if(out_file == NULL && first)
 	{
 		fprintf(stderr, "Error: missing command\n");
-        vessel->parser_error = 1;
+        	vessel->parser_error = 1;
 		return; 
 	}
 	if(out_file == NULL && !first)
-    {
-        fprintf(stderr, "Error: no output file\n");
-    	vessel->parser_error = 1;
+    	{
+        	fprintf(stderr, "Error: no output file\n");
+    		vessel->parser_error = 1;
 		return; 
 	}
 	out_file = strtok(out_file, " "); 
@@ -143,8 +143,8 @@ void handle_redirects(cmd_t* vessel, char* raw)
 	if(fd == -1)
 	{
 		fprintf(stderr, "Error: cannot open output file\n");
-        vessel->parser_error = 1;
-        return;
+        	vessel->parser_error = 1;
+        	return;
 	}
 	close(fd); 
 }
@@ -191,7 +191,7 @@ void pipeline_2(cmd_t* cmd)
 	if(pipe(fd) == -1)
 	{
 		fprintf(stderr, "Error: cannot get create pipe\n");
-        exit(1);
+        	exit(1);
 	}	
 
 	/* Note the program outputing to the terminal must be in the  *
@@ -201,28 +201,28 @@ void pipeline_2(cmd_t* cmd)
 	if(pid > 0)
 	{
 		/*Parent */
-        /*No need for write access to pipe*/
-        close(fd[1]);
+        	/*No need for write access to pipe*/
+        	close(fd[1]);
 
-        /* stdin is received from the pipe*/
-        dup2(fd[0], STDIN_FILENO);
-        close(fd[0]);
+        	/* stdin is received from the pipe*/
+        	dup2(fd[0], STDIN_FILENO);
+        	close(fd[0]);
 
-        /* Catches errors from children */
+        	/* Catches errors from children */
 		waitpid(pid, &status1, 0); 
 		cmd->child1_status = WEXITSTATUS(status1); 
-        execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
+        	execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
 	}	
 	else
 	{
 		/*Child*/
-        /* No need for read access from pipe */
-    	close(fd[0]);
+        	/* No need for read access from pipe */
+    		close(fd[0]);
 
-        /* stdout goes to pipe */
-        dup2(fd[1], STDOUT_FILENO);
-        close(fd[1]);
-        execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args);
+        	/* stdout goes to pipe */
+        	dup2(fd[1], STDOUT_FILENO);
+        	close(fd[1]);
+        	execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args);
 	}
 }
 
@@ -233,26 +233,26 @@ void pipeline_3(cmd_t* cmd)
 	if(pipe(fd_1) == -1)
 	{
 		fprintf(stderr, "Error: cannot get create pipe\n");
-        exit(1);
+        	exit(1);
 	}
 	if((pid1 =fork()) > 0)
 	{
 		/*Grandparent*/
-        close(fd_1[1]);
-        dup2(fd_1[0], STDIN_FILENO);
-        close(fd_1[0]);
+        	close(fd_1[1]);
+        	dup2(fd_1[0], STDIN_FILENO);
+        	close(fd_1[0]);
 
-        /*grandparent catches error from child*/
+        	/*grandparent catches error from child*/
 		waitpid(pid1, &status1, 0);
-        cmd->child1_status = WEXITSTATUS(status1);
-        execvp(cmd->pipe_cmds[2]->exec, cmd->pipe_cmds[2]->args); 
+        	cmd->child1_status = WEXITSTATUS(status1);
+        	execvp(cmd->pipe_cmds[2]->exec, cmd->pipe_cmds[2]->args); 
 	}	
 	else
 	{
 		if(pipe(fd_2) == -1)
 		{
 			fprintf(stderr, "Error: cannot get create pipe\n");
-            exit(1);
+            		exit(1);
 		}	
 		if((pid2= fork()) > 0)
 		{
@@ -271,16 +271,16 @@ void pipeline_3(cmd_t* cmd)
 
 			/*Parent checks for errors from child*/
 			waitpid(pid2, &status2, 0);
-	        cmd->child2_status = WEXITSTATUS(status2);
+	        	cmd->child2_status = WEXITSTATUS(status2);
 			execvp(cmd->pipe_cmds[1]->exec, cmd->pipe_cmds[1]->args); 
 		}
 		else
 		{
 			/*Child*/
-	        close(fd_2[0]);
-            dup2(fd_2[1], STDOUT_FILENO);
-            close(fd_2[1]); 
-            execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args);
+	        	close(fd_2[0]);
+            		dup2(fd_2[1], STDOUT_FILENO);
+            		close(fd_2[1]); 
+            		execvp(cmd->pipe_cmds[0]->exec, cmd->pipe_cmds[0]->args);
 		} 	
 	}
 }
@@ -299,15 +299,15 @@ void execute_command_c(cmd_t* cmd)
 			if(execvp(cmd->exec, cmd->args) == -1)
 			{
 				fprintf(stderr, "Error: command not found\n");
-                exit(1);
+                		exit(1);
 			}	
 			break; 
 		case REDIRECT_NORMAL: 
-			fd = open(cmd->output_file, O_WRONLY | O_CREAT, 0644);	
+			fd = open(cmd->output_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);	
 			dup2(fd, STDOUT_FILENO);
 			close(fd);
 			execvp(cmd->exec, cmd->args);
-		    break; 
+		    	break; 
 		case REDIRECT_APPEND:
 			fd = open(cmd->output_file, O_WRONLY | O_APPEND, 0644);	
 			dup2(fd, STDOUT_FILENO);
@@ -330,7 +330,7 @@ void execute_command_c(cmd_t* cmd)
 				exit(1); 
 			}	
 			printf("%s\n", cmd->cwd);
-		    fflush(stdout);
+		    	fflush(stdout);
 			exit(0);		
 			break;
 		case CD: 
@@ -354,7 +354,7 @@ void execute_command_p(cmd_t* cmd)
 			if(!getcwd(cmd->cwd, sizeof(cmd->cwd)))
 			{
 				fprintf(stderr, "Error: cannot get current directory\n");
-                exit(1);
+                		exit(1);
 			}
 			execute_sls(cmd); 
 			break; 
@@ -372,7 +372,7 @@ void execute_command_p(cmd_t* cmd)
 void execute_sls(cmd_t* cmd)
 {
 	DIR * cur_dir;
-    struct dirent *dp;
+    	struct dirent *dp;
 	struct stat st;
 	if(!getcwd(cmd->cwd, sizeof(cmd->cwd)))
 	{
@@ -383,7 +383,7 @@ void execute_sls(cmd_t* cmd)
 	dp = readdir(cur_dir); 
 	if (dp == NULL)
 	{
-		fprintf(stderr, "Error: cannot open directory"); 
+		fprintf(stderr, "Error: cannot open directory\n"); 
 		exit(1); 
 	}
 	do
@@ -395,7 +395,7 @@ void execute_sls(cmd_t* cmd)
 			continue; 
 		}
 		stat(dp->d_name, &st); 
-        printf("%s (%ld bytes)\n",dp->d_name, st.st_size);
+        	printf("%s (%ld bytes)\n",dp->d_name, st.st_size);
 		dp = readdir(cur_dir); 
 
 	}while(dp !=NULL); 	
@@ -408,25 +408,25 @@ void print_main(cmd_t* parser, int status)
 	{
 		case PIPE_TWO:
 			fprintf(stderr, "+ completed '%s' [%d][%d]\n",
-                    parser->raw_input, 
-					parser->child1_status,
-					WEXITSTATUS(status)); 
+                    		parser->raw_input, 
+				parser->child1_status,
+				WEXITSTATUS(status)); 
 			break; 
 		case PIPE_THREE:
 			fprintf(stderr, "+ completed '%s' [%d][%d][%d]\n",
-                    parser->raw_input,
-				    parser->child1_status,
-                    parser->child2_status,	
-                    WEXITSTATUS(status));
+                    		parser->raw_input,
+				parser->child1_status,
+                    		parser->child2_status,	
+                    		WEXITSTATUS(status));
 			break;
 		case EXIT:
-            fprintf(stderr, "Bye...\n");
+            		fprintf(stderr, "Bye...\n");
 			fprintf(stderr, "+ completed '%s' [%d]\n",
-                    parser->raw_input, WEXITSTATUS(status));
+                    		parser->raw_input, WEXITSTATUS(status));
 			break; 
 		default:
 			fprintf(stderr, "+ completed '%s' [%d]\n",
-                    parser->raw_input, WEXITSTATUS(status));
+                    	parser->raw_input, WEXITSTATUS(status));
 			break;
 	}
 }
