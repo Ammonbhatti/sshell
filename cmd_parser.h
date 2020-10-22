@@ -21,27 +21,27 @@ enum CMD_TYPE {NORMAL, REDIRECT_NORMAL, REDIRECT_APPEND, PIPE_TWO, PIPE_THREE, S
 
 typedef struct cmd_t 
 {
-	
 	enum CMD_TYPE which_command; 
 	char raw_input[MAX_BUFFER];
-        char exec[DEFAULT_SIZE];		 	
+    char exec[DEFAULT_SIZE];		 	
 	char* args[MAX_ARGS];
-	
+
 	/*Used to hold output file name redirection */
-	char output_file[DEFAULT_SIZE]; 		
-	
+	char output_file[DEFAULT_SIZE]; 
+
 	/*Pipe command variables*/
 	unsigned mallocs; 
 	int child1_status, child2_status; 
 	struct cmd_t* pipe_cmds[MAX_PIPE_SIZE];
-	
+
 	/*Current working directory*/
 	char cwd[DEFAULT_SIZE];	
+
 	/*Note args[1] is pointing to path for cd */
-	
+
 	/*Useful for not printing +completed */
 	int parser_error; 
-
+	
 	/*Specfically for tester*/
 	int command_finished; 
 
