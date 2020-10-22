@@ -86,7 +86,7 @@ void handle_normal(cmd_t* vessel, char* raw)
 		/*Too many arguments check*/
 		if(count -1 > MAX_ARGS)
 		{
-			fprintf(stderr, "Error: too many process arguements\n");
+			fprintf(stderr, "Error: too many process arguments\n");
             vessel->parser_error = 1;
 			return; 
 		}
@@ -179,7 +179,7 @@ void handle_pipes(cmd_t* vessel, char* raw)
 	}
 	else
 	{
-		fprintf(stderr, "Error: missing commands\n");
+		fprintf(stderr, "Error: missing command\n");
 		vessel->parser_error = 1; 
 	}	
 }
